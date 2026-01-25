@@ -5,7 +5,7 @@ set -e
 CONFIG_DIR="${HOME}/.clawdbot/nest"
 mkdir -p "$CONFIG_DIR"
 
-python3 << 'PYTHON_SCRIPT'
+python3 - "$@" << 'PYTHON_SCRIPT'
 import json
 import sys
 import os
