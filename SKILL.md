@@ -63,7 +63,7 @@ This opens a browser for authorization. Click through to allow access.
 
 ## Configuration
 
-Config files in `~/.clawdbot/nest/`:
+Config files in `~/.openclaw/integrations/nest/`:
 - `config.json` — Project ID, OAuth credentials
 - `tokens.json` — Access/refresh tokens (auto-managed)
 
@@ -76,7 +76,7 @@ If you have multiple thermostats, specify by room name:
 {baseDir}/scripts/nest.sh status "Living Room"
 ```
 
-Without a room name, commands affect the first thermostat found.
+Without a room name, `mode` applies to all thermostats. Other commands (`heat`, `cool`, `status`) affect the first thermostat found.
 
 ## Troubleshooting
 

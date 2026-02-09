@@ -2,7 +2,7 @@
 # Nest Thermostat control script
 set -e
 
-CONFIG_DIR="${HOME}/.clawdbot/nest"
+CONFIG_DIR="${HOME}/.openclaw/integrations/nest"
 mkdir -p "$CONFIG_DIR"
 
 python3 - "$@" << 'PYTHON_SCRIPT'
@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.error
 import threading
 
-CONFIG_DIR = os.path.expanduser("~/.clawdbot/nest")
+CONFIG_DIR = os.path.expanduser("~/.openclaw/integrations/nest")
 CONFIG_FILE = f"{CONFIG_DIR}/config.json"
 TOKEN_FILE = f"{CONFIG_DIR}/tokens.json"
 
@@ -36,7 +36,10 @@ def api_request(method, url, data=None, headers=None):
         req.data = json.dumps(data).encode() if isinstance(data, dict) else urllib.parse.urlencode(data).encode()
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read())
+            body = resp.read().decode().strip()
+            if not body or body == "{}":
+                return {"status": "success"}
+            return json.loads(body)
     except urllib.error.HTTPError as e:
         return {"error": e.code, "message": e.read().decode()}
 
@@ -63,10 +66,14 @@ def sdm_request(endpoint, method="GET", data=None):
     if not config.get("project_id") or not tokens.get("access_token"):
         print("Not configured. Run: nest.sh setup <project_id> <client_id> <client_secret>")
         sys.exit(1)
-    
-    url = f"https://smartdevicemanagement.googleapis.com/v1/enterprises/{config['project_id']}{endpoint}"
+
+    base = "https://smartdevicemanagement.googleapis.com/v1"
+    if endpoint.startswith("/enterprises/"):
+        url = f"{base}{endpoint}"
+    else:
+        url = f"{base}/enterprises/{config['project_id']}{endpoint}"
     headers = {"Authorization": f"Bearer {tokens['access_token']}", "Content-Type": "application/json"}
-    
+
     result = api_request(method, url, data, headers)
     if result.get("error") == 401:
         if refresh_token():
@@ -190,16 +197,23 @@ def set_cool(temp_f, name=None):
         print(f"{room}: Cool set to {temp_f}°F")
 
 def set_mode(mode, name=None):
-    t, room = get_thermostat(name)
-    if not t:
+    if name:
+        thermostats = []
+        t, room = get_thermostat(name)
+        if t:
+            thermostats = [(t, room)]
+    else:
+        thermostats = [(t, t.get("parentRelations", [{}])[0].get("displayName", "Unknown")) for t in get_thermostats()]
+    if not thermostats:
         print("Thermostat not found")
         return
-    result = sdm_request(f"/{t['name']}:executeCommand", "POST", {
-        "command": "sdm.devices.commands.ThermostatMode.SetMode",
-        "params": {"mode": mode.upper()}
-    })
-    if "error" not in result:
-        print(f"{room}: Mode set to {mode.upper()}")
+    for t, room in thermostats:
+        result = sdm_request(f"/{t['name']}:executeCommand", "POST", {
+            "command": "sdm.devices.commands.ThermostatMode.SetMode",
+            "params": {"mode": mode.upper()}
+        })
+        if "error" not in result:
+            print(f"{room}: Mode set to {mode.upper()}")
 
 def main():
     args = sys.argv[1:]
