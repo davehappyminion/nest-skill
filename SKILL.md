@@ -63,7 +63,7 @@ This opens a browser for authorization. Click through to allow access.
 
 ## Configuration
 
-Config files in `~/.openclaw/integrations/nest/`:
+Config files in `{baseDir}/config/`:
 - `config.json` — Project ID, OAuth credentials
 - `tokens.json` — Access/refresh tokens (auto-managed)
 

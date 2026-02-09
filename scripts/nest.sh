@@ -2,8 +2,11 @@
 # Nest Thermostat control script
 set -e
 
-CONFIG_DIR="${HOME}/.openclaw/integrations/nest"
-mkdir -p "$CONFIG_DIR"
+# Resolve paths relative to this script
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+export NEST_CONFIG_DIR="${BASE_DIR}/config"
+mkdir -p "$NEST_CONFIG_DIR"
 
 python3 - "$@" << 'PYTHON_SCRIPT'
 import json
@@ -16,7 +19,7 @@ import urllib.parse
 import urllib.error
 import threading
 
-CONFIG_DIR = os.path.expanduser("~/.openclaw/integrations/nest")
+CONFIG_DIR = os.environ["NEST_CONFIG_DIR"]
 CONFIG_FILE = f"{CONFIG_DIR}/config.json"
 TOKEN_FILE = f"{CONFIG_DIR}/tokens.json"
 
@@ -33,7 +36,11 @@ def save_json(path, data):
 def api_request(method, url, data=None, headers=None):
     req = urllib.request.Request(url, method=method, headers=headers or {})
     if data:
-        req.data = json.dumps(data).encode() if isinstance(data, dict) else urllib.parse.urlencode(data).encode()
+        content_type = (headers or {}).get("Content-Type", "")
+        if content_type == "application/x-www-form-urlencoded":
+            req.data = urllib.parse.urlencode(data).encode()
+        else:
+            req.data = json.dumps(data).encode()
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             body = resp.read().decode().strip()
